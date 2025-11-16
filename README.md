@@ -53,10 +53,9 @@ python multiinput_test_onescenario-full-scale fuel fire.py
 ```python
     def detect_abnormality(self, tabular_data, zero_window_size=5, change_window_size=35, zero_threshold=1e-6, change_threshold=1e-3):
         """
-        改进的传感器异常检测机制，支持三种异常：
-        1. 突发异常值（原逻辑）：单点数据超过阈值
-        2. 持续零值故障：连续多个采样点数据接近零（传感器失效典型特征）
-        3. 长时间温度数据没有变化：连续多个采样点的数据变化小于阈值（传感器不响应）
+        改进的传感器异常检测机制：
+        1. 持续零值故障：连续多个采样点数据接近零（传感器失效典型特征）
+        2. 长时间温度数据没有变化：连续多个采样点的数据变化小于阈值（传感器不响应）
 
         :param zero_window_size: 持续零值故障检测的滑动窗口大小
         :param change_window_size: 长时间没有变化检测的滑动窗口大小
@@ -158,31 +157,7 @@ python multiinput_test_onescenario-full-scale fuel fire.py
 
 本模型采用模块化设计，核心是一个 `MultiModalModel`，它继承自 `pytorch_lightning.LightningModule`。
 
-### 1. 模态特征提取
 
-* **视觉模态 (Image Modality)**：使用 VGG-like 的多层卷积块 (`vgg_block` 和 `conv_blocks`) 从火焰图像中提取特征，并通过全连接层 (`image_fc`) 降维。
-* **表格模态 (Tabular Modality)**：使用多层全连接网络 (`tabular_fc`) 从温度升高值 (`Tem_rise`) 中提取特征。
-
-，使用 $\text{MSELoss}$ 约束 $\text{temp\_pred}$ 接近真实的传感器温度升高值 $\text{tabular}$ (`temp_loss`)，强制图像特征学习到与温度相关的物理意义。
-
-### 2. 动态权重融合 (Dynamic Weighted Fusion)
-
-这是模型的关键创新点，用于提升模型的鲁棒性。
-
-* **权重生成器 (`WeightGenerator`)**：
-    * 将图像和表格的特征进行拼接，并利用一个**滑动窗口 (`window_size=10`)** 机制捕获时序上下文。
-    * 通过全连接层和 $\text{Softmax}$ 输出两个模态的可靠性权重 $\text{weights}$.
-* **传感器异常检测 (`detect_abnormality`)**：
-    * 改进的检测机制，可以识别三种异常情况：
-        1.  持续零值故障（`zero_window_size`）。
-        2.  长时间数据无变化（`change_window_size`）。
-    * **异常处理**：如果检测到传感器异常，权重会进行硬调整，显著**降低表格模态的权重**（$\text{tab\_weight} * 0.1$）并**增加图像模态的权重**（$\text{img\_weight} + 0.4$），然后重新 $\text{Softmax}$ 归一化。
-* **加权融合**：最终的特征通过权重进行加权求和后拼接：
-    $$\text{combined} = (\text{img\_feat} \times \text{img\_weight}) \oplus (\text{tab\_feat} \times \text{tab\_weight})$$
-
-### 4. 最终预测
-
-* 联合预测层 (`final_fc`)：将融合后的特征映射到最终的 HRR 预测值。
 
 
 ## 运行与结果
