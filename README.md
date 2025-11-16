@@ -40,7 +40,7 @@ fds fire test datasets/
 ```
 
 2. 数据格式要求：
-   - `Fire.pkl`：包含列 `['Time', 'Tem_rise', 'HRR']`
+   - `Fuel.pkl`：包含列 `['Time', 'Tem_rise', 'HRR']`
    - 图像文件：以时间戳命名的JPG格式火焰图像
 
 
