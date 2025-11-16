@@ -1,9 +1,6 @@
 # 隧道火灾多模态预测模型
-本项目实现了一个基于深度学习的隧道火灾多模态预测系统，能够结合火焰图像和温度传感器数据来预测热释放率（HRR）。该系统具有动态权重调整、跨模态映射和传感器异常检测等先进功能。
-多模态融合
+这是一个基于 PyTorch Lightning 实现的深度学习模型，旨在实时、准确地预测隧道火灾中的热释放速率（Heat Release Rate, HRR）。模型创新性地结合了**图像数据（火焰视觉信息）和传感器数据（温度升高值），并通过动态权重机制处理传感器异常情况，实现鲁棒的多模态融合预测。
 多模态模型获取网址：链接: https://pan.baidu.com/s/1Q05fBduWIri3WG3BQ5mWRw 提取码: 9shx
-
-
 
 图像模态：基于VGG架构的火焰图像特征提取
 传感器模态：温度上升数据的深度处理
@@ -154,6 +151,57 @@ python multiinput_test_onescenario-full-scale fuel fire.py
 
         return weights
 ```
+
+
+
+##  模型架构
+
+本模型采用模块化设计，核心是一个 `MultiModalModel`，它继承自 `pytorch_lightning.LightningModule`。
+
+### 1. 模态特征提取
+
+* **视觉模态 (Image Modality)**：使用 VGG-like 的多层卷积块 (`vgg_block` 和 `conv_blocks`) 从火焰图像中提取特征，并通过全连接层 (`image_fc`) 降维。
+* **表格模态 (Tabular Modality)**：使用多层全连接网络 (`tabular_fc`) 从温度升高值 (`Tem_rise`) 中提取特征。
+
+，使用 $\text{MSELoss}$ 约束 $\text{temp\_pred}$ 接近真实的传感器温度升高值 $\text{tabular}$ (`temp_loss`)，强制图像特征学习到与温度相关的物理意义。
+
+### 2. 动态权重融合 (Dynamic Weighted Fusion)
+
+这是模型的关键创新点，用于提升模型的鲁棒性。
+
+* **权重生成器 (`WeightGenerator`)**：
+    * 将图像和表格的特征进行拼接，并利用一个**滑动窗口 (`window_size=10`)** 机制捕获时序上下文。
+    * 通过全连接层和 $\text{Softmax}$ 输出两个模态的可靠性权重 $\text{weights}$.
+* **传感器异常检测 (`detect_abnormality`)**：
+    * 改进的检测机制，可以识别三种异常情况：
+        1.  持续零值故障（`zero_window_size`）。
+        2.  长时间数据无变化（`change_window_size`）。
+    * **异常处理**：如果检测到传感器异常，权重会进行硬调整，显著**降低表格模态的权重**（$\text{tab\_weight} * 0.1$）并**增加图像模态的权重**（$\text{img\_weight} + 0.4$），然后重新 $\text{Softmax}$ 归一化。
+* **加权融合**：最终的特征通过权重进行加权求和后拼接：
+    $$\text{combined} = (\text{img\_feat} \times \text{img\_weight}) \oplus (\text{tab\_feat} \times \text{tab\_weight})$$
+
+### 4. 最终预测
+
+* 联合预测层 (`final_fc`)：将融合后的特征映射到最终的 HRR 预测值。
+
+
+## 运行与结果
+
+运行 `main()` 函数将加载预训练模型（需配置 `CHECKPOINT_PATH`），对数据集进行推理，并生成性能报告和可视化图表。
+
+###  性能摘要
+
+运行结果会输出详细的性能指标，包括：
+
+| 指标 | 描述 | 示例值 |
+| :--- | :--- | :--- |
+| **MAE** | 平均绝对误差 (Mean Absolute Error) | $X.X \text{ kW}$ |
+| **RMSE** | 均方根误差 (Root Mean Square Error) | $X.X \text{ kW}$ |
+| **R² Score** | 决定系数 (Coefficient of Determination) | $0.XXX$ |
+| **95% CI** | 95% 置信区间 (预测误差) | $[\text{Lower}, \text{Upper}] \text{ kW}$ |
+| **Avg Inference Time** | 单帧平均推理时间 | $X.XX \text{ ms}$ |
+
+---
 
 
 
