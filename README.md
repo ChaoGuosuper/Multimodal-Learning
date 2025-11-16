@@ -26,7 +26,7 @@ pip install numpy pandas matplotlib seaborn scikit-learn
 
 ### 数据准备
 
-1. 创建数据目录结构：
+1. 目录结构：
 ```
 fds fire test datasets/
 ├── Fuel.pkl          # 包含时间、温度上升、HRR等数据
